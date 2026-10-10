@@ -1,0 +1,148 @@
+{
+  "resourceType": "Bundle",
+  "id": "synthetic-nw-100001",
+  "type": "collection",
+  "meta": {
+    "tag": [
+      {
+        "system": "https://example.invalid/fhir/CodeSystem/data-provenance",
+        "code": "synthetic",
+        "display": "Synthetic data generated for a reference architecture. Not real PHI."
+      }
+    ]
+  },
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:patient-nw-100001",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "nw-100001",
+        "identifier": [
+          {
+            "system": "https://example.invalid/northwind/member-id",
+            "value": "NW-100001"
+          }
+        ],
+        "name": [{ "family": "Brekke496", "given": ["Aaron697"] }],
+        "gender": "male",
+        "birthDate": "1954-03-11",
+        "address": [{ "city": "Springfield", "state": "WA", "postalCode": "99999" }],
+        "telecom": [{ "system": "phone", "value": "555-0100", "use": "home" }]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:coverage-nw-100001",
+      "resource": {
+        "resourceType": "Coverage",
+        "id": "cov-nw-100001",
+        "status": "active",
+        "beneficiary": { "reference": "Patient/nw-100001" },
+        "subscriberId": "NW-100001",
+        "period": { "start": "2026-01-01", "end": "2026-12-31" },
+        "payor": [{ "display": "Northwind Health (fictional)" }],
+        "class": [
+          { "type": { "text": "plan" }, "value": "NW-MA-HMO-2026",
+            "name": "Northwind Advantage Gold (HMO)" },
+          { "type": { "text": "group" }, "value": "MA-INDIVIDUAL" }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:condition-nw-100001-1",
+      "resource": {
+        "resourceType": "Condition",
+        "id": "cond-nw-100001-1",
+        "clinicalStatus": { "coding": [{ "code": "active" }] },
+        "code": {
+          "coding": [{ "system": "http://snomed.info/sct", "code": "279039007",
+                       "display": "Low back pain" }],
+          "text": "Chronic low back pain with radicular symptoms"
+        },
+        "subject": { "reference": "Patient/nw-100001" },
+        "onsetDateTime": "2025-11-02"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:medicationrequest-nw-100001-1",
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "id": "medreq-nw-100001-1",
+        "status": "active",
+        "intent": "order",
+        "medicationCodeableConcept": { "text": "Naproxen 500 mg oral tablet" },
+        "subject": { "reference": "Patient/nw-100001" },
+        "authoredOn": "2026-01-18",
+        "dosageInstruction": [{ "text": "One tablet by mouth twice daily with food" }]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:servicerequest-nw-100001-1",
+      "resource": {
+        "resourceType": "ServiceRequest",
+        "id": "svcreq-nw-100001-1",
+        "status": "active",
+        "intent": "order",
+        "priority": "routine",
+        "code": {
+          "coding": [{ "system": "http://www.ama-assn.org/go/cpt", "code": "72148",
+                       "display": "MRI lumbar spine without contrast" }],
+          "text": "MRI lumbar spine without contrast"
+        },
+        "subject": { "reference": "Patient/nw-100001" },
+        "authoredOn": "2026-02-10",
+        "requester": { "display": "Dr. Olen Beier (fictional)" }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:claim-nw-100001-pa1",
+      "resource": {
+        "resourceType": "Claim",
+        "id": "claim-nw-100001-pa1",
+        "status": "active",
+        "use": "preauthorization",
+        "identifier": [
+          { "system": "https://example.invalid/northwind/pa-reference",
+            "value": "PA-20260142" }
+        ],
+        "type": { "coding": [{ "code": "professional" }] },
+        "patient": { "reference": "Patient/nw-100001" },
+        "created": "2026-02-10",
+        "insurer": { "display": "Northwind Health (fictional)" },
+        "provider": { "display": "Springfield Orthopedic Associates (fictional)" },
+        "priority": { "coding": [{ "code": "normal" }] },
+        "item": [
+          {
+            "sequence": 1,
+            "productOrService": {
+              "coding": [{ "code": "72148", "display": "MRI lumbar spine without contrast" }]
+            },
+            "servicedDate": "2026-03-02"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:claimresponse-nw-100001-pa1",
+      "resource": {
+        "resourceType": "ClaimResponse",
+        "id": "claimresp-nw-100001-pa1",
+        "status": "active",
+        "use": "preauthorization",
+        "patient": { "reference": "Patient/nw-100001" },
+        "created": "2026-02-12",
+        "insurer": { "display": "Northwind Health (fictional)" },
+        "request": { "reference": "Claim/claim-nw-100001-pa1" },
+        "outcome": "queued",
+        "disposition": "Pending information: conservative therapy documentation requested from the ordering provider on 2026-02-12. Determination due 2026-02-24.",
+        "preAuthRef": "PA-20260142",
+        "processNote": [
+          {
+            "number": 1,
+            "type": "display",
+            "text": "Reviewed against MP-001 Criterion A. Office notes covering the six week conservative therapy trial were not included with the request."
+          }
+        ]
+      }
+    }
+  ]
+}

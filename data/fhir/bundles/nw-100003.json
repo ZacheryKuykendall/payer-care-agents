@@ -1,0 +1,143 @@
+{
+  "resourceType": "Bundle",
+  "id": "synthetic-nw-100003",
+  "type": "collection",
+  "meta": {
+    "tag": [
+      {
+        "system": "https://example.invalid/fhir/CodeSystem/data-provenance",
+        "code": "synthetic",
+        "display": "Synthetic data generated for a reference architecture. Not real PHI."
+      }
+    ]
+  },
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:patient-nw-100003",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "nw-100003",
+        "identifier": [
+          {
+            "system": "https://example.invalid/northwind/member-id",
+            "value": "NW-100003"
+          }
+        ],
+        "name": [{ "family": "Kuvalis546", "given": ["Darrel268"] }],
+        "gender": "male",
+        "birthDate": "1979-12-04",
+        "address": [{ "city": "Eastport", "state": "WA", "postalCode": "99997" }],
+        "telecom": [{ "system": "email", "value": "darrel268@example.invalid" }]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:coverage-nw-100003",
+      "resource": {
+        "resourceType": "Coverage",
+        "id": "cov-nw-100003",
+        "status": "active",
+        "beneficiary": { "reference": "Patient/nw-100003" },
+        "subscriberId": "NW-100003",
+        "period": { "start": "2026-01-01", "end": "2026-12-31" },
+        "payor": [{ "display": "Northwind Health (fictional)" }],
+        "class": [
+          { "type": { "text": "plan" }, "value": "NW-COM-PPO-2026",
+            "name": "Northwind Standard PPO" },
+          { "type": { "text": "group" }, "value": "GRP-4471" }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:condition-nw-100003-1",
+      "resource": {
+        "resourceType": "Condition",
+        "id": "cond-nw-100003-1",
+        "clinicalStatus": { "coding": [{ "code": "active" }] },
+        "code": {
+          "coding": [{ "system": "http://snomed.info/sct", "code": "44054006",
+                       "display": "Type 2 diabetes mellitus" }],
+          "text": "Type 2 diabetes mellitus"
+        },
+        "subject": { "reference": "Patient/nw-100003" },
+        "onsetDateTime": "2021-05-19"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:medicationrequest-nw-100003-1",
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "id": "medreq-nw-100003-1",
+        "status": "active",
+        "intent": "order",
+        "medicationCodeableConcept": { "text": "Metformin 1000 mg oral tablet" },
+        "subject": { "reference": "Patient/nw-100003" },
+        "authoredOn": "2025-09-30",
+        "dosageInstruction": [{ "text": "One tablet by mouth twice daily with meals" }]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:medicationrequest-nw-100003-2",
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "id": "medreq-nw-100003-2",
+        "status": "active",
+        "intent": "order",
+        "medicationCodeableConcept": { "text": "Insulin glargine 100 units/mL injection" },
+        "subject": { "reference": "Patient/nw-100003" },
+        "authoredOn": "2026-01-07",
+        "dosageInstruction": [{ "text": "22 units subcutaneously at bedtime" }]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:claim-nw-100003-pa1",
+      "resource": {
+        "resourceType": "Claim",
+        "id": "claim-nw-100003-pa1",
+        "status": "active",
+        "use": "preauthorization",
+        "identifier": [
+          { "system": "https://example.invalid/northwind/pa-reference",
+            "value": "PA-20260311" }
+        ],
+        "type": { "coding": [{ "code": "professional" }] },
+        "patient": { "reference": "Patient/nw-100003" },
+        "created": "2026-02-02",
+        "insurer": { "display": "Northwind Health (fictional)" },
+        "provider": { "display": "Eastport Endocrinology (fictional)" },
+        "item": [
+          {
+            "sequence": 1,
+            "productOrService": {
+              "coding": [{ "code": "A4239",
+                           "display": "Continuous glucose monitor supply allowance" }]
+            },
+            "servicedDate": "2026-02-02"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:claimresponse-nw-100003-pa1",
+      "resource": {
+        "resourceType": "ClaimResponse",
+        "id": "claimresp-nw-100003-pa1",
+        "status": "active",
+        "use": "preauthorization",
+        "patient": { "reference": "Patient/nw-100003" },
+        "created": "2026-02-05",
+        "insurer": { "display": "Northwind Health (fictional)" },
+        "request": { "reference": "Claim/claim-nw-100003-pa1" },
+        "outcome": "error",
+        "disposition": "Denied. The submitted records did not document an insulin regimen or problematic hypoglycemia as required by MP-014. Appeal rights were included in the determination letter dated 2026-02-05.",
+        "preAuthRef": "PA-20260311",
+        "processNote": [
+          {
+            "number": 1,
+            "type": "display",
+            "text": "Denied by medical director review against MP-014. A new request including the current insulin regimen may be submitted at any time."
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,192 @@
+{
+  "resourceType": "Bundle",
+  "id": "synthetic-nw-100002",
+  "type": "collection",
+  "meta": {
+    "tag": [
+      {
+        "system": "https://example.invalid/fhir/CodeSystem/data-provenance",
+        "code": "synthetic",
+        "display": "Synthetic data generated for a reference architecture. Not real PHI."
+      }
+    ]
+  },
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:patient-nw-100002",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "nw-100002",
+        "identifier": [
+          {
+            "system": "https://example.invalid/northwind/member-id",
+            "value": "NW-100002"
+          }
+        ],
+        "name": [{ "family": "Tillman882", "given": ["Marisol411"] }],
+        "gender": "female",
+        "birthDate": "1961-07-29",
+        "address": [{ "city": "Riverton", "state": "WA", "postalCode": "99998" }],
+        "telecom": [{ "system": "phone", "value": "555-0142", "use": "mobile" }]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:coverage-nw-100002",
+      "resource": {
+        "resourceType": "Coverage",
+        "id": "cov-nw-100002",
+        "status": "active",
+        "beneficiary": { "reference": "Patient/nw-100002" },
+        "subscriberId": "NW-100002",
+        "period": { "start": "2026-01-01", "end": "2026-12-31" },
+        "payor": [{ "display": "Northwind Health (fictional)" }],
+        "class": [
+          { "type": { "text": "plan" }, "value": "NW-MA-PPO-2026",
+            "name": "Northwind Advantage Choice (PPO)" },
+          { "type": { "text": "group" }, "value": "MA-INDIVIDUAL" }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:condition-nw-100002-1",
+      "resource": {
+        "resourceType": "Condition",
+        "id": "cond-nw-100002-1",
+        "clinicalStatus": { "coding": [{ "code": "active" }] },
+        "code": {
+          "coding": [{ "system": "http://snomed.info/sct", "code": "239873007",
+                       "display": "Osteoarthritis of knee" }],
+          "text": "Osteoarthritis of the right knee"
+        },
+        "subject": { "reference": "Patient/nw-100002" },
+        "onsetDateTime": "2024-06-14"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:medicationrequest-nw-100002-1",
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "id": "medreq-nw-100002-1",
+        "status": "active",
+        "intent": "order",
+        "medicationCodeableConcept": { "text": "Meloxicam 15 mg oral tablet" },
+        "subject": { "reference": "Patient/nw-100002" },
+        "authoredOn": "2025-12-03",
+        "dosageInstruction": [{ "text": "One tablet by mouth once daily" }]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:servicerequest-nw-100002-1",
+      "resource": {
+        "resourceType": "ServiceRequest",
+        "id": "svcreq-nw-100002-1",
+        "status": "active",
+        "intent": "order",
+        "priority": "routine",
+        "code": {
+          "coding": [{ "system": "http://www.ama-assn.org/go/cpt", "code": "73721",
+                       "display": "MRI knee without contrast" }],
+          "text": "MRI right knee without contrast"
+        },
+        "subject": { "reference": "Patient/nw-100002" },
+        "authoredOn": "2026-01-22",
+        "requester": { "display": "Dr. Lauralee Kunze (fictional)" }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:claim-nw-100002-pa1",
+      "resource": {
+        "resourceType": "Claim",
+        "id": "claim-nw-100002-pa1",
+        "status": "active",
+        "use": "preauthorization",
+        "identifier": [
+          { "system": "https://example.invalid/northwind/pa-reference",
+            "value": "PA-20260207" }
+        ],
+        "type": { "coding": [{ "code": "professional" }] },
+        "patient": { "reference": "Patient/nw-100002" },
+        "created": "2026-01-22",
+        "insurer": { "display": "Northwind Health (fictional)" },
+        "provider": { "display": "Riverton Imaging Center (fictional)" },
+        "priority": { "coding": [{ "code": "normal" }] },
+        "item": [
+          {
+            "sequence": 1,
+            "productOrService": {
+              "coding": [{ "code": "73721", "display": "MRI knee without contrast" }]
+            },
+            "servicedDate": "2026-02-18"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:claimresponse-nw-100002-pa1",
+      "resource": {
+        "resourceType": "ClaimResponse",
+        "id": "claimresp-nw-100002-pa1",
+        "status": "active",
+        "use": "preauthorization",
+        "patient": { "reference": "Patient/nw-100002" },
+        "created": "2026-01-25",
+        "insurer": { "display": "Northwind Health (fictional)" },
+        "request": { "reference": "Claim/claim-nw-100002-pa1" },
+        "outcome": "complete",
+        "disposition": "Approved. One MRI of the right knee without contrast, valid 2026-01-25 through 2026-04-25 at a network facility.",
+        "preAuthRef": "PA-20260207",
+        "preAuthPeriod": { "start": "2026-01-25", "end": "2026-04-25" },
+        "processNote": [
+          {
+            "number": 1,
+            "type": "display",
+            "text": "Met criteria on initial clinical review. Approved for one unit at an in-network facility."
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:claim-nw-100002-pa2",
+      "resource": {
+        "resourceType": "Claim",
+        "id": "claim-nw-100002-pa2",
+        "status": "active",
+        "use": "preauthorization",
+        "identifier": [
+          { "system": "https://example.invalid/northwind/pa-reference",
+            "value": "PA-20260264" }
+        ],
+        "type": { "coding": [{ "code": "professional" }] },
+        "patient": { "reference": "Patient/nw-100002" },
+        "created": "2026-02-28",
+        "insurer": { "display": "Northwind Health (fictional)" },
+        "provider": { "display": "Riverton Orthopedics (fictional)" },
+        "item": [
+          {
+            "sequence": 1,
+            "productOrService": {
+              "coding": [{ "code": "29881", "display": "Knee arthroscopy with meniscectomy" }]
+            },
+            "servicedDate": "2026-04-06"
+          }
+        ]
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:claimresponse-nw-100002-pa2",
+      "resource": {
+        "resourceType": "ClaimResponse",
+        "id": "claimresp-nw-100002-pa2",
+        "status": "active",
+        "use": "preauthorization",
+        "patient": { "reference": "Patient/nw-100002" },
+        "created": "2026-03-01",
+        "insurer": { "display": "Northwind Health (fictional)" },
+        "request": { "reference": "Claim/claim-nw-100002-pa2" },
+        "outcome": "queued",
+        "disposition": "In clinical review. A medical director review is scheduled; determination due 2026-03-14.",
+        "preAuthRef": "PA-20260264"
+      }
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "name": "payer-agents-egress",
+  "mode": "Enforced",
+  "default_action": "Deny",
+  "base_policy_name": "Microsoft.DefaultV2",
+  "content_safety_mode": "Blocking",
+  "notes": [
+    "Single source of truth for two enforcement points: the local GuardedTransport simulator and the Azure Cognitive Services Responsible AI policy deployed by infra/modules/rai-egress-policy.bicep.",
+    "Roll out in Audit first. Switch mode to Enforced only after the Application Insights 'Network egress decision' records show no unexpected would-deny entries.",
+    "Foundry platform domains are allow-listed by the service itself; a Deny default does not sever the runtime's own connectivity.",
+    "PREVIEW: network egress controls for Foundry hosted agents are in public preview, carry no preview SLA, and Microsoft states they are not intended for production."
+  ],
+  "rules": [
+    {
+      "name": "allow-fhir-via-apim",
+      "host": "apim-payer-agents.azure-api.net",
+      "action": "Allow",
+      "description": "The governed MCP and FHIR surface. The only clinical data path the agent is permitted to use."
+    },
+    {
+      "name": "allow-search",
+      "host": "*.search.windows.net",
+      "action": "Allow",
+      "description": "Azure AI Search for plan benefits and medical policy retrieval."
+    },
+    {
+      "name": "allow-foundry-inference",
+      "host": "*.services.ai.azure.com",
+      "action": "Allow",
+      "description": "Foundry model inference, including the decision deployment."
+    },
+    {
+      "name": "allow-cognitive-services",
+      "host": "*.cognitiveservices.azure.com",
+      "action": "Allow",
+      "description": "Content safety and language services inside the compliance boundary."
+    },
+    {
+      "name": "allow-monitor-ingestion",
+      "host": "*.in.applicationinsights.azure.com",
+      "action": "Allow",
+      "description": "Telemetry and audit export."
+    },
+    {
+      "name": "deny-raw-fhir-backend",
+      "host": "*.fhir.azurehealthcareapis.com",
+      "action": "Deny",
+      "description": "Clinical data must traverse API Management so the call is authenticated, rate limited and audited. Direct backend access bypasses all three."
+    },
+    {
+      "name": "deny-public-model-apis",
+      "host": "api.openai.com",
+      "action": "Deny",
+      "description": "No PHI to a processor outside the agreement set."
+    },
+    {
+      "name": "deny-paste-sites",
+      "host": "*.pastebin.com",
+      "action": "Deny",
+      "description": "Named exfiltration destination. Redundant under a Deny default, and kept because an explicit rule produces a named audit record instead of an anonymous default-deny."
+    }
+  ]
+}
