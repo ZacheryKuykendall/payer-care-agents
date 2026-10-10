@@ -22,6 +22,7 @@ in both modes; only the client behind it changes.
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 
 from pydantic import BaseModel, Field
@@ -31,8 +32,8 @@ from payer_agents.decisions.base import (
     DecisionClient,
     DecisionError,
     DecisionRequest,
+    DecisionResponse,
     NoulQuestion,
-    Question,
     ScoreAnswer,
     ScoreQuestion,
     softmax,
@@ -182,7 +183,7 @@ class LexicalJudgeClient(MockDecisionClient):
     instance can serve both routing and grading in the demo.
     """
 
-    name = "lexical-judge"
+    name = "offline-lexical-decision"
     provider = "mock"
     model_name = "lexical-grounding-v1"
 
@@ -190,19 +191,51 @@ class LexicalJudgeClient(MockDecisionClient):
     #: the claim counts as supported.
     CLAIM_COVERAGE = 0.6
 
+    #: Known limitation, stated plainly: this stand-in grades *cited* claims. It
+    #: measures whether a line that points at source [2] is actually supported by
+    #: source [2]. It cannot notice a fluent, confident, uncited fabrication --
+    #: detecting that is a reasoning task, which is what the real decision model is
+    #: for. Mock mode's extractive composer cannot fabricate, so the gap does not
+    #: bite locally; against FoundryChatComposer it would, which is why Azure mode
+    #: grades with Microsoft-Decision-1 and the rubric says so explicitly.
+
     def __init__(self, **kwargs: object) -> None:
         lexicon = dict(MockDecisionClient().lexicon)
         lexicon.update(UNSAFE_CUES)
         super().__init__(lexicon=lexicon, **kwargs)  # type: ignore[arg-type]
 
-    def _answer(self, name: str, question: Question, lowered: str, tokens: set[str]) -> Answer:
-        if name == GROUNDING_QUESTION and isinstance(question, ScoreQuestion):
-            return self._grounding_answer(question, lowered)
-        return super()._answer(name, question, lowered, tokens)
+    def decide(self, request: DecisionRequest) -> DecisionResponse:
+        """Score normally, then replace the grounding answer with a measured one.
 
-    def _grounding_answer(self, question: ScoreQuestion, lowered: str) -> Answer:
-        answer_text, evidence_text = _split_state(lowered)
-        claims = _claim_lines(answer_text)
+        Reading ``request.state`` structurally rather than parsing the flattened
+        string keeps this client working when the state schema changes -- a lesson
+        learned the expensive way.
+        """
+        response = super().decide(request)
+        if not isinstance(request.state, dict):
+            return response
+
+        grounding = request.questions.get(GROUNDING_QUESTION)
+        if isinstance(grounding, ScoreQuestion):
+            response.answers[GROUNDING_QUESTION] = self._grounding_answer(
+                grounding, request.state
+            )
+
+        # Re-score the safety gate against the answer alone. The inherited scorer
+        # sees the whole flattened state, and a medical policy passage legitimately
+        # full of words like "denial" and "approval" would otherwise make every
+        # correctly cited answer look like it was issuing a determination.
+        safety = request.questions.get(SAFETY_QUESTION)
+        if isinstance(safety, NoulQuestion):
+            answer_text = str(request.state.get("answer", ""))
+            response.answers[SAFETY_QUESTION] = super()._answer(
+                SAFETY_QUESTION, safety, answer_text.lower(), tokenize(answer_text)
+            )
+        return response
+
+    def _grounding_answer(self, question: ScoreQuestion, state: dict) -> Answer:
+        evidence_text = " ".join(str(item) for item in state.get("evidence", []))
+        claims = _claim_lines(str(state.get("answer", "")))
         if not claims:
             # Nothing assertive to check. Treat as fully supported rather than
             # punishing an answer that only says "I am handing you to a person".
@@ -232,24 +265,23 @@ class LexicalJudgeClient(MockDecisionClient):
         )
 
 
-def _split_state(lowered: str) -> tuple[str, str]:
-    """The flattened state is ``answer <text> evidence <passages>``."""
-    marker = " evidence "
-    index = lowered.find(marker)
-    if index == -1:
-        return lowered, ""
-    return lowered[:index], lowered[index + len(marker) :]
+CITATION_MARKER = re.compile(r"\[\d+\]")
 
 
 def _claim_lines(answer_text: str) -> list[str]:
-    """Assertive lines only: bullets carrying evidence, not scaffolding."""
-    skip_prefixes = ("sources:", "[1]", "[2]", "[3]", "from the plan documents")
+    """Cited claims only.
+
+    A line that ends in ``[2]`` is asserting that source 2 supports it, and that
+    assertion is checkable. Lead-ins, closings and the source list assert nothing
+    about the member and grading them just adds noise to the score.
+    """
     claims: list[str] = []
     for raw in answer_text.splitlines():
         line = raw.strip().lstrip("-").strip()
-        if len(line) < 20 or line.lower().startswith(skip_prefixes):
+        if len(line) < 20 or line.lower().startswith("sources:"):
             continue
-        claims.append(line)
+        if CITATION_MARKER.search(line):
+            claims.append(CITATION_MARKER.sub("", line).strip())
     return claims
 
 

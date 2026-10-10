@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Payer Care Agents - governed multi-agent reference architecture</title>
+<link rel="stylesheet" href="/static/styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#129534;</text></svg>" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="mark" aria-hidden="true"></span>
+    <div>
+      <h1>Payer Care Agents</h1>
+      <p>Governed multi-agent reference architecture on Azure AI Foundry</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="pill pill-warn" title="No real protected health information is present in this repository.">Synthetic data only</span>
+    <span class="pill" id="mode-pill">loading…</span>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab is-active" data-tab="console" role="tab">Console</button>
+  <button class="tab" data-tab="audit" role="tab">Audit trail</button>
+  <button class="tab" data-tab="tools" role="tab">Tools &amp; gateway</button>
+  <button class="tab" data-tab="egress" role="tab">PHI boundary</button>
+  <button class="tab" data-tab="evals" role="tab">Evaluation</button>
+</nav>
+
+<main>
+  <!-- ------------------------------------------------- console -->
+  <section class="panel is-active" id="tab-console">
+    <div class="layout">
+      <aside class="sidebar">
+        <h2>Scenarios</h2>
+        <p class="hint">Seven turns chosen so that four of them are refused. The
+          refusals are the point.</p>
+        <ul class="scenario-list" id="scenario-list"></ul>
+
+        <h2 class="mt">Ask anything</h2>
+        <form id="ask-form">
+          <textarea id="ask-text" rows="4" placeholder="e.g. Does my plan cover hearing aids? My member ID is NW-100001."></textarea>
+          <div class="row">
+            <select id="ask-channel" aria-label="Channel">
+              <option value="member_portal">Member portal</option>
+              <option value="call_center">Call center</option>
+              <option value="provider_portal">Provider portal</option>
+            </select>
+            <button type="submit" class="primary">Send</button>
+          </div>
+        </form>
+        <details class="mt">
+          <summary>Synthetic members</summary>
+          <ul class="members">
+            <li><code>NW-100001</code> Advantage Gold (HMO) · lumbar MRI auth pending information</li>
+            <li><code>NW-100002</code> Advantage Choice (PPO) · knee MRI approved, arthroscopy in review</li>
+            <li><code>NW-100003</code> Standard PPO · CGM request denied</li>
+          </ul>
+        </details>
+      </aside>
+
+      <div class="stage" id="stage">
+        <div class="empty" id="empty-state">
+          <h2>Pick a scenario, or ask your own question.</h2>
+          <p>Every turn shows the routing distribution, which safety gate fired,
+             the grounding score, each governed tool call, and the audit records
+             written along the way.</p>
+          <p class="dim">Running offline. No Azure credentials, no network calls,
+             no real member data.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------- audit -->
+  <section class="panel" id="tab-audit">
+    <div class="panel-head">
+      <div>
+        <h2>Audit trail</h2>
+        <p class="hint">Every record carries the hash of the one before it. Editing
+          any record invalidates every record after it.</p>
+      </div>
+      <div class="row">
+        <span class="pill" id="chain-pill">—</span>
+        <button class="ghost" id="refresh-audit">Refresh</button>
+      </div>
+    </div>
+    <div class="table-wrap"><table class="grid" id="audit-table">
+      <thead><tr><th>#</th><th>Category</th><th>Action</th><th>Outcome</th><th>Detail</th><th>Hash</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
+
+  <!-- ------------------------------------------------- tools -->
+  <section class="panel" id="tab-tools">
+    <div class="panel-head">
+      <div>
+        <h2>MCP tools and gateway policy</h2>
+        <p class="hint">Tools are exposed over MCP and fronted by API Management.
+          The write tool is blocked for this agent identity on purpose, so there is
+          something to see the policy refuse.</p>
+      </div>
+    </div>
+    <div class="cards" id="tool-cards"></div>
+    <div class="callout">
+      <strong>Try it:</strong> the member-facing identity is not authorised for
+      <code>submit_prior_authorization</code>. Call it and the gateway answers 403
+      before the handler runs.
+      <button class="ghost" id="try-blocked">Call the blocked tool</button>
+      <pre class="result" id="blocked-result" hidden></pre>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------- egress -->
+  <section class="panel" id="tab-egress">
+    <div class="panel-head">
+      <div>
+        <h2>Outbound network controls</h2>
+        <p class="hint">One policy document drives two enforcement points: this
+          local simulator and the Foundry hosted-agent egress policy deployed by
+          Bicep. Ordered rules, first match wins, default deny.</p>
+      </div>
+      <span class="pill pill-warn">Azure feature in preview</span>
+    </div>
+    <div class="layout-2">
+      <div>
+        <h3>Policy</h3>
+        <div class="table-wrap"><table class="grid" id="egress-table">
+          <thead><tr><th>#</th><th>Rule</th><th>Host</th><th>Action</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+      <div>
+        <h3>Evaluate a destination</h3>
+        <form id="egress-form" class="row">
+          <input id="egress-url" value="https://myaccount.fhir.azurehealthcareapis.com/Patient" />
+          <button class="primary" type="submit">Evaluate</button>
+        </form>
+        <div class="chips" id="egress-samples"></div>
+        <pre class="result" id="egress-result" hidden></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------- evals -->
+  <section class="panel" id="tab-evals">
+    <div class="panel-head">
+      <div>
+        <h2>Evaluation</h2>
+        <p class="hint">Labelled synthetic cases, scored live. In offline mode these
+          numbers describe a lexical classifier, not a Foundry model — the harness is
+          the deliverable, not the score.</p>
+      </div>
+      <button class="primary" id="run-evals">Run suite</button>
+    </div>
+    <div id="eval-output"><p class="dim">Not run yet.</p></div>
+  </section>
+</main>
+
+<footer>
+  <span>Personal reference architecture by Zachery Kuykendall. Fictional plan
+    sponsor, invented policy documents, Synthea-style synthetic patients.</span>
+  <span><a href="/docs">OpenAPI</a> · <a href="/mcp/tools">MCP tools</a> ·
+    <a href="/fhir/metadata">FHIR capability statement</a></span>
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

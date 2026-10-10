@@ -77,12 +77,15 @@ def build_state(request: MemberRequest) -> dict[str, Any]:
     The docs call out that structured or code-enriched state improves task definition.
     It also keeps the audit record readable: you can see exactly what the classifier
     was shown, field by field.
+
+    Note what is *not* here. ``TAXONOMY_VERSION`` is written to the audit record, not
+    to the model input: it is provenance for the reader of the log, and putting it in
+    the state only gives a classifier tokens to trip over.
     """
     return {
         "channel": request.channel.value,
         "member_message": request.text,
         "member_identified": request.member_id is not None,
-        "taxonomy_version": TAXONOMY_VERSION,
     }
 
 

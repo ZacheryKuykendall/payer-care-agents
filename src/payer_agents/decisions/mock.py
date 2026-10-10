@@ -38,10 +38,20 @@ from payer_agents.decisions.base import (
 from payer_agents.decisions.lexicon import CUE_LEXICON, PRIORS, CueMap
 
 _WORD = re.compile(r"[a-z0-9][a-z0-9\-']*")
+#: Function words carry no signal but do carry weight: before this list grew, the
+#: word "not" was enough to make a correctly cited policy answer look like it was
+#: issuing a coverage determination. Domain words that happen to be common -- plan,
+#: member, covered, request -- are deliberately left in.
 _STOPWORDS = frozenset(
     """a an and are as at be but by for from has have how i if in is it its my of on or
     that the their there they this to was what when where which who will with you your
-    about do does did can could should would me we us our""".split()
+    about do does did can could should would me we us our
+    not no nor than then such also only very into each both all some most any
+    other others same own just here those been being had having were may might must
+    shall per via upon within without during while because however whether
+    use used using get got make made take taken give given new one two
+    will would like well much many more less first last next
+    am are isnt dont cant""".split()
 )
 
 #: Evidence is capped before it becomes a logit. Without a cap, a message that happens
@@ -49,7 +59,9 @@ _STOPWORDS = frozenset(
 #: of fake certainty the human-review gate exists to catch.
 MAX_EVIDENCE = 1.5
 LOGIT_GAIN = 3.2
-CRITERIA_WEIGHT = 0.55
+CRITERIA_WEIGHT = 0.8
+#: Distinct criteria words a message must hit before the overlap signal saturates.
+OVERLAP_SATURATION = 4.0
 NOUL_GAIN = 4.0
 NOUL_BIAS = -2.3
 
@@ -83,10 +95,15 @@ def tokenize(text: str) -> set[str]:
 
 
 def _flatten_state(state: object) -> str:
+    """Flatten structured state to text, values only.
+
+    Field names are schema, not content. Including them lets "member_message" put
+    the word *member* into every request and quietly tilt a benefits classifier.
+    """
     if isinstance(state, str):
         return state
     if isinstance(state, dict):
-        return " ".join(f"{k} {_flatten_state(v)}" for k, v in state.items())
+        return " ".join(_flatten_state(v) for v in state.values())
     if isinstance(state, (list, tuple)):
         return " ".join(_flatten_state(v) for v in state)
     return str(state)
@@ -145,10 +162,12 @@ class MockDecisionClient(DecisionClient):
                   tokens: set[str]) -> float:
         key = f"{question_name}.{option}"
         cue = self._cue_score(key, lowered) or self._cue_score(option, lowered)
-        overlap = 0.0
-        criteria_tokens = tokenize(criteria)
-        if criteria_tokens:
-            overlap = len(criteria_tokens & tokens) / len(criteria_tokens)
+        # Count matched criteria words rather than taking a ratio. Both ratios are
+        # unstable here: dividing by the criteria length punishes thorough option
+        # descriptions, and dividing by the message length makes a long message look
+        # unclassifiable. A saturating count of distinct hits is stable against both.
+        matched = len(tokenize(criteria) & tokens)
+        overlap = min(1.0, matched / OVERLAP_SATURATION)
         return min(MAX_EVIDENCE, cue + CRITERIA_WEIGHT * overlap)
 
     def _answer(
