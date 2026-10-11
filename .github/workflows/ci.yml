@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Lint, type-check and test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install the project
+        run: uv sync --python ${{ matrix.python-version }} --extra dev
+
+      - name: Lint
+        run: |
+          uv run ruff check src tests scripts
+          uv run ruff format --check src tests scripts
+
+      - name: Test with coverage gate
+        run: uv run pytest
+
+      # The egress policy has two enforcement points: the local simulator and the
+      # Azure RAI policy. This is the step that stops them drifting apart.
+      - name: Egress policy is in sync with the deployed rules
+        run: uv run python scripts/export_egress_policy.py --check
+
+  infra:
+    name: Validate Bicep and API Management policies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the Bicep CLI
+        run: |
+          curl -sSL -o bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+          chmod +x bicep
+          sudo mv bicep /usr/local/bin/bicep
+          bicep --version
+
+      - name: Build templates
+        run: |
+          bicep build infra/main.bicep --outfile /tmp/main.json
+          bicep build-params infra/main.bicepparam --outfile /tmp/params.json
+
+      - name: Lint templates
+        run: bicep lint infra/main.bicep
+
+      - name: API Management policies are well-formed XML
+        run: |
+          for file in infra/apim/policies/*.xml; do
+            python -c "import sys, xml.etree.ElementTree as ET; ET.parse(sys.argv[1])" "$file"
+            echo "ok $file"
+          done
