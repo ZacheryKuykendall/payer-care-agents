@@ -252,6 +252,9 @@ def test_confidence_ceiling_shrinks_toward_uniform_without_changing_the_winner()
     plain = MockDecisionClient().decide(WIDE_REQUEST).choice("team")
     capped = MockDecisionClient(confidence_ceiling=0.30).decide(WIDE_REQUEST).choice("team")
     assert capped.choice == plain.choice
+    # Exactly at or under the ceiling, not approximately. The degraded client relies
+    # on this to stay below every routing threshold.
+    assert capped.confidence <= 0.30
     assert capped.confidence == pytest.approx(0.30, abs=1e-6)
     assert capped.confidence < plain.confidence
     assert sum(capped.probabilities.values()) == pytest.approx(1.0)
@@ -453,14 +456,23 @@ def test_calibration_report_on_a_perfectly_calibrated_sample():
     assert report.accuracy == pytest.approx(0.9)
     assert report.expected_calibration_error == pytest.approx(0.0, abs=1e-9)
     assert not report.overconfident
+    assert not report.underconfident
+    assert report.direction == "well calibrated"
     assert "ECE=" in report.summary()
 
 
 def test_calibration_detects_overconfidence():
     report = calibration_report([(0.95, False)] * 10)
     assert report.overconfident
+    assert report.direction == "overconfident"
     assert report.expected_calibration_error == pytest.approx(0.95)
     assert report.brier_score == pytest.approx(0.9025)
+
+
+def test_calibration_detects_underconfidence():
+    report = calibration_report([(0.3, True)] * 10)
+    assert report.underconfident
+    assert report.direction == "underconfident"
 
 
 def test_calibration_report_handles_an_empty_sample():

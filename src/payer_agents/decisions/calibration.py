@@ -43,12 +43,27 @@ class CalibrationReport(BaseModel):
     mean_confidence: float
     bins: list[ReliabilityBin] = Field(default_factory=list)
 
+    #: Gap below which the sample is reported as well calibrated. Without it, a
+    #: float-accumulation difference of 1e-16 flips a verdict a human reads as a
+    #: finding -- and the accumulation order differs between CPython versions.
+    CALIBRATION_TOLERANCE: float = 1e-9
+
     @property
     def overconfident(self) -> bool:
-        return self.mean_confidence > self.accuracy
+        return self.mean_confidence - self.accuracy > self.CALIBRATION_TOLERANCE
+
+    @property
+    def underconfident(self) -> bool:
+        return self.accuracy - self.mean_confidence > self.CALIBRATION_TOLERANCE
+
+    @property
+    def direction(self) -> str:
+        if self.overconfident:
+            return "overconfident"
+        return "underconfident" if self.underconfident else "well calibrated"
 
     def summary(self) -> str:
-        direction = "overconfident" if self.overconfident else "underconfident"
+        direction = self.direction
         return (
             f"n={self.sample_size} accuracy={self.accuracy:.3f} "
             f"mean_confidence={self.mean_confidence:.3f} ({direction}) "

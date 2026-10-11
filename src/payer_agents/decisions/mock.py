@@ -212,12 +212,29 @@ class MockDecisionClient(DecisionClient):
         count = len(probabilities)
         uniform = 1.0 / count
         peak = max(probabilities.values())
-        if peak <= ceiling or peak <= uniform:
+
+        # A ceiling below uniform is unreachable: with n options something must hold
+        # at least 1/n. Aim at what is achievable rather than emitting negative mass.
+        target = max(ceiling, uniform)
+        if peak <= target:
             return probabilities
-        # A ceiling below uniform is unreachable -- with n options something must hold
-        # at least 1/n. Collapse to uniform rather than emitting negative mass.
-        blend = min(1.0, max(0.0, (ceiling - uniform) / (peak - uniform)))
-        return normalise({k: blend * v + (1 - blend) * uniform for k, v in probabilities.items()})
+
+        blend = (target - uniform) / (peak - uniform)
+        shrunk = normalise({k: blend * v + (1 - blend) * uniform for k, v in probabilities.items()})
+
+        # Float accumulation can leave the peak a fraction above the target, and the
+        # accumulation order differs between CPython versions. The ceiling is a
+        # safety guarantee -- the degraded client relies on it to stay under every
+        # routing threshold -- so enforce it exactly rather than approximately.
+        top = max(shrunk, key=lambda k: shrunk[k])
+        excess = shrunk[top] - target
+        if excess > 0 and count > 1:
+            shrunk[top] = target
+            share = excess / (count - 1)
+            for key in shrunk:
+                if key != top:
+                    shrunk[key] += share
+        return shrunk
 
 
 class HeuristicDecisionClient(MockDecisionClient):
