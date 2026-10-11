@@ -1,0 +1,192 @@
+<!--
+  API Management policy for the FHIR MCP server.
+
+  Scope: MCP server (APIs > MCP Servers > <server> > Policies). These policies apply
+  to every operation exposed as a tool. Global-scope policies evaluate first.
+
+  This file is the authoritative control. `src/payer_agents/gateway/apim_sim.py`
+  re-implements the same chain in Python so that the controls run in the local demo
+  and are asserted by `tests/test_gateway.py`; when you change the order or the
+  behaviour here, change it there too.
+
+  Order is the control:
+    1. identify the caller            validate-azure-ad-token
+    2. require an audit correlation   check-header
+    3. stamp purpose of use           set-variable
+    4. screen adversarial input       llm-content-safety
+    5. budget per agent, not per IP   rate-limit-by-key + quota-by-key
+    6. authenticate to the backend    authentication-managed-identity
+    7. record the call either way     log-to-eventhub in outbound and on-error
+
+  XML note: policy expressions that contain double quotes sit in single-quoted
+  attributes, and generics are escaped as &lt; and &gt;. Both are required for the
+  document to parse; `make lint-policies` checks it.
+
+  Placeholders in {{curly braces}} are API Management named values.
+-->
+<policies>
+  <inbound>
+    <base />
+
+    <!-- 1. Entra ID. Only registered agent client applications may reach the tools.
+            The agent holds a gateway credential; it never holds a FHIR credential. -->
+    <validate-azure-ad-token
+        tenant-id="{{entra-tenant-id}}"
+        header-name="Authorization"
+        failed-validation-httpcode="401"
+        failed-validation-error-message="Unauthorized. A valid agent access token is required.">
+      <client-application-ids>
+        <application-id>{{member-assistant-client-id}}</application-id>
+        <application-id>{{provider-intake-client-id}}</application-id>
+      </client-application-ids>
+      <audiences>
+        <audience>{{mcp-api-audience}}</audience>
+      </audiences>
+      <required-claims>
+        <claim name="roles" match="any">
+          <value>Fhir.Tools.Invoke</value>
+        </claim>
+      </required-claims>
+    </validate-azure-ad-token>
+
+    <!-- 2. No correlation id, no call. Every tool invocation has to be joinable to
+            the member turn that caused it, or the audit trail is decorative. -->
+    <check-header name="x-correlation-id" failed-check-httpcode="400"
+                  failed-check-error-message="x-correlation-id is required for auditability"
+                  ignore-case="true" />
+
+    <!-- 3. Purpose of use travels with the request. Defaults to TREAT; an agent
+            doing payment or operations work must say so, and the audit keeps it. -->
+    <set-variable name="agentId"
+                  value='@(context.Request.Headers.GetValueOrDefault("x-agent-id","unidentified"))' />
+    <set-variable name="purposeOfUse"
+                  value='@(context.Request.Headers.GetValueOrDefault("x-purpose-of-use","TREAT"))' />
+    <set-variable name="correlationId"
+                  value='@(context.Request.Headers.GetValueOrDefault("x-correlation-id",""))' />
+
+    <!-- tools/call carries the tool name in the JSON-RPC params. Parsing it here is
+         what makes per-tool audit and per-tool policy possible at all. -->
+    <set-variable name="toolName" value='@{
+        try {
+            var body = context.Request.Body.As&lt;JObject&gt;(preserveContent: true);
+            return (string)(body?["params"]?["name"]) ?? (string)body?["method"] ?? "unknown";
+        } catch (Exception) {
+            return "unparsable";
+        }
+    }' />
+
+    <!-- 4. Adversarial-input screening on tool traffic. Shield Prompt catches
+            jailbreak attempts embedded in tool arguments, which is the attack an
+            agent tool surface actually faces. -->
+    <llm-content-safety backend-id="content-safety-backend" shield-prompt="true">
+      <categories output-type="EightSeverityLevels">
+        <category name="Hate" threshold="4" />
+        <category name="Violence" threshold="4" />
+        <category name="SelfHarm" threshold="2" />
+        <category name="Sexual" threshold="4" />
+      </categories>
+    </llm-content-safety>
+
+    <!-- 5. Budget per agent identity. Keying on IP would let one chatty agent spend
+            another's budget, and on a container platform they share egress IPs. -->
+    <rate-limit-by-key calls="60" renewal-period="60"
+                       counter-key='@((string)context.Variables["agentId"])'
+                       remaining-calls-variable-name="remainingCalls" />
+    <quota-by-key calls="20000" renewal-period="86400"
+                  counter-key='@((string)context.Variables["agentId"])' />
+
+    <!-- 6. Managed identity to the FHIR backend. No secret exists in this path, and
+            the backend sees the gateway, never the agent. -->
+    <authentication-managed-identity
+        resource="https://{{fhir-service-name}}.fhir.azurehealthcareapis.com"
+        output-token-variable-name="fhirToken"
+        ignore-error="false" />
+    <set-header name="Authorization" exists-action="override">
+      <value>@("Bearer " + (string)context.Variables["fhirToken"])</value>
+    </set-header>
+
+    <!-- Strip anything the caller tried to pass through that the backend should not
+         see. An agent cannot smuggle its own identity assertions downstream. -->
+    <set-header name="x-ms-client-request-id" exists-action="override">
+      <value>@((string)context.Variables["correlationId"])</value>
+    </set-header>
+    <set-header name="x-forwarded-authorization" exists-action="delete" />
+    <set-header name="x-on-behalf-of" exists-action="delete" />
+
+    <trace source="payer-agents-mcp" severity="information">
+      <message>MCP tool invocation</message>
+      <metadata name="agent-id" value='@((string)context.Variables["agentId"])' />
+      <metadata name="tool" value='@((string)context.Variables["toolName"])' />
+      <metadata name="purpose-of-use" value='@((string)context.Variables["purposeOfUse"])' />
+      <metadata name="correlation-id" value='@((string)context.Variables["correlationId"])' />
+    </trace>
+  </inbound>
+
+  <backend>
+    <forward-request timeout="20" />
+  </backend>
+
+  <outbound>
+    <base />
+    <set-header name="x-ratelimit-remaining" exists-action="override">
+      <value>@(context.Variables.GetValueOrDefault("remainingCalls","").ToString())</value>
+    </set-header>
+    <!-- Never echo the backend's identity or internal topology to an agent. -->
+    <set-header name="x-ms-server" exists-action="delete" />
+    <set-header name="server" exists-action="delete" />
+
+    <!-- 7. The audit record. Metadata only: who, which tool, outcome, timing,
+            correlation. No request body, no response body, no member identifiers.
+            The clinical detail lives in the FHIR service's own audit log, joinable
+            to this record by correlation id. -->
+    <log-to-eventhub logger-id="payer-agents-audit">@{
+      return new JObject(
+        new JProperty("schema", "payer-agents.tool-call.v1"),
+        new JProperty("timestamp", DateTime.UtcNow.ToString("o")),
+        new JProperty("agentId", (string)context.Variables["agentId"]),
+        new JProperty("principalId", context.Request.Headers.GetValueOrDefault("x-ms-client-principal-id","")),
+        new JProperty("tool", (string)context.Variables["toolName"]),
+        new JProperty("purposeOfUse", (string)context.Variables["purposeOfUse"]),
+        new JProperty("correlationId", (string)context.Variables["correlationId"]),
+        new JProperty("statusCode", context.Response.StatusCode),
+        new JProperty("elapsedMs", (int)context.Elapsed.TotalMilliseconds),
+        new JProperty("apiName", context.Api.Name)
+      ).ToString(Newtonsoft.Json.Formatting.None);
+    }</log-to-eventhub>
+  </outbound>
+
+  <on-error>
+    <base />
+    <!-- A rejected call is the one most worth logging. Emitting only on success is
+         how tool abuse becomes invisible. -->
+    <log-to-eventhub logger-id="payer-agents-audit">@{
+      return new JObject(
+        new JProperty("schema", "payer-agents.tool-call.v1"),
+        new JProperty("timestamp", DateTime.UtcNow.ToString("o")),
+        new JProperty("agentId", context.Variables.GetValueOrDefault("agentId","unidentified").ToString()),
+        new JProperty("tool", context.Variables.GetValueOrDefault("toolName","unknown").ToString()),
+        new JProperty("correlationId", context.Request.Headers.GetValueOrDefault("x-correlation-id","")),
+        new JProperty("statusCode", context.Response == null ? 500 : context.Response.StatusCode),
+        new JProperty("outcome", "error"),
+        new JProperty("reason", context.LastError == null ? "unknown" : context.LastError.Reason),
+        new JProperty("message", context.LastError == null ? "" : context.LastError.Message)
+      ).ToString(Newtonsoft.Json.Formatting.None);
+    }</log-to-eventhub>
+
+    <!-- Error bodies are a disclosure surface. Return the status and the
+         correlation id; the detail stays in the audit stream. -->
+    <return-response>
+      <set-status code="@(context.Response == null ? 500 : context.Response.StatusCode)"
+                  reason="Request rejected" />
+      <set-header name="Content-Type" exists-action="override">
+        <value>application/json</value>
+      </set-header>
+      <set-body>@{
+        return new JObject(
+          new JProperty("error", context.LastError == null ? "request_rejected" : context.LastError.Reason),
+          new JProperty("correlationId", context.Request.Headers.GetValueOrDefault("x-correlation-id",""))
+        ).ToString();
+      }</set-body>
+    </return-response>
+  </on-error>
+</policies>

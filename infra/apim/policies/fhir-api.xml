@@ -1,0 +1,86 @@
+<!--
+  API scope policy for the FHIR REST API behind the MCP server.
+
+  The MCP server exposes a curated set of operations as tools. This policy guards the
+  underlying REST API for the cases where something calls it directly, and enforces
+  the two controls that must not depend on the MCP layer being in the path:
+
+  * read-only. The member-facing agent path never writes to a clinical system.
+  * member scoping. A token carrying a member scope may only read that member.
+
+  Defence in depth, not belt and braces: the MCP tool definitions already exclude
+  write operations, but a tool definition is configuration and this is enforcement.
+-->
+<policies>
+  <inbound>
+    <base />
+
+    <!-- Read-only. Reject the verb before the router even looks at the path. -->
+    <choose>
+      <when condition='@(context.Request.Method != "GET")'>
+        <return-response>
+          <set-status code="405" reason="Method Not Allowed" />
+          <set-header name="Content-Type" exists-action="override">
+            <value>application/json</value>
+          </set-header>
+          <set-body>{"error":"this API path is read-only for agent identities"}</set-body>
+        </return-response>
+      </when>
+    </choose>
+
+    <!-- Member scoping. If the access token carries a member_scope claim, every
+         request must target that member. A broad-scope service identity (bulk
+         export, analytics) carries no such claim and is not constrained here. -->
+    <set-variable name="memberScope" value='@{
+        var header = context.Request.Headers.GetValueOrDefault("Authorization","");
+        if (string.IsNullOrEmpty(header)) { return ""; }
+        var jwt = header.Replace("Bearer ","").AsJwt();
+        return jwt == null ? "" : jwt.Claims.GetValueOrDefault("member_scope","");
+    }' />
+
+    <set-variable name="requestedMember" value='@{
+        var q = context.Request.Url.Query;
+        return q.GetValueOrDefault("identifier",
+               q.GetValueOrDefault("patient",
+               q.GetValueOrDefault("subject",
+               q.GetValueOrDefault("beneficiary",""))));
+    }' />
+
+    <choose>
+      <when condition='@{
+          var scope = (string)context.Variables["memberScope"];
+          if (string.IsNullOrEmpty(scope)) { return false; }
+          var requested = (string)context.Variables["requestedMember"];
+          return !requested.Contains(scope);
+      }'>
+        <return-response>
+          <set-status code="403" reason="Forbidden" />
+          <set-header name="Content-Type" exists-action="override">
+            <value>application/json</value>
+          </set-header>
+          <set-body>{"error":"request is outside the member scope of this token"}</set-body>
+        </return-response>
+      </when>
+    </choose>
+
+    <authentication-managed-identity
+        resource="https://{{fhir-service-name}}.fhir.azurehealthcareapis.com" />
+  </inbound>
+
+  <backend>
+    <base />
+  </backend>
+
+  <outbound>
+    <base />
+    <!-- Cap the page size the gateway hands back. An agent that asks for everything
+         should not be able to pull a cohort through a tool call. -->
+    <set-header name="x-max-page-size" exists-action="override">
+      <value>50</value>
+    </set-header>
+  </outbound>
+
+  <on-error>
+    <base />
+  </on-error>
+</policies>

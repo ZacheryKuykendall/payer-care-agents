@@ -1,0 +1,42 @@
+<!--
+  All-APIs scope policy.
+
+  Two things belong here rather than on the MCP server, because they must hold even
+  if someone adds a new API and forgets to attach a policy:
+
+  * a correlation id exists on every request, generated if the caller omitted one
+  * response-body logging is OFF
+
+  The second one is not a preference. Logging response bodies at the All APIs scope
+  interferes with MCP transport, and in a payer context it would also write clinical
+  payloads into a diagnostic store that was never scoped to hold them.
+-->
+<policies>
+  <inbound>
+    <set-header name="x-correlation-id" exists-action="skip">
+      <value>@(Guid.NewGuid().ToString("N"))</value>
+    </set-header>
+    <cors allow-credentials="false">
+      <allowed-origins>
+        <origin>{{member-portal-origin}}</origin>
+      </allowed-origins>
+      <allowed-methods>
+        <method>GET</method>
+        <method>POST</method>
+      </allowed-methods>
+      <allowed-headers>
+        <header>*</header>
+      </allowed-headers>
+    </cors>
+    <ip-filter action="allow">
+      <address-range from="{{agent-subnet-start}}" to="{{agent-subnet-end}}" />
+    </ip-filter>
+  </inbound>
+  <backend><base /></backend>
+  <outbound>
+    <set-header name="x-correlation-id" exists-action="override">
+      <value>@(context.Request.Headers.GetValueOrDefault("x-correlation-id",""))</value>
+    </set-header>
+  </outbound>
+  <on-error><base /></on-error>
+</policies>

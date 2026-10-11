@@ -1,0 +1,82 @@
+[
+  {
+    "name": "allow-fhir-via-apim",
+    "ruleType": "Fqdn",
+    "match": {
+      "host": "apim-payer-agents.azure-api.net"
+    },
+    "action": {
+      "actionType": "Allow"
+    }
+  },
+  {
+    "name": "allow-search",
+    "ruleType": "Fqdn",
+    "match": {
+      "host": "*.search.windows.net"
+    },
+    "action": {
+      "actionType": "Allow"
+    }
+  },
+  {
+    "name": "allow-foundry-inference",
+    "ruleType": "Fqdn",
+    "match": {
+      "host": "*.services.ai.azure.com"
+    },
+    "action": {
+      "actionType": "Allow"
+    }
+  },
+  {
+    "name": "allow-cognitive-services",
+    "ruleType": "Fqdn",
+    "match": {
+      "host": "*.cognitiveservices.azure.com"
+    },
+    "action": {
+      "actionType": "Allow"
+    }
+  },
+  {
+    "name": "allow-monitor-ingestion",
+    "ruleType": "Fqdn",
+    "match": {
+      "host": "*.in.applicationinsights.azure.com"
+    },
+    "action": {
+      "actionType": "Allow"
+    }
+  },
+  {
+    "name": "deny-raw-fhir-backend",
+    "ruleType": "Fqdn",
+    "match": {
+      "host": "*.fhir.azurehealthcareapis.com"
+    },
+    "action": {
+      "actionType": "Deny"
+    }
+  },
+  {
+    "name": "deny-public-model-apis",
+    "ruleType": "Fqdn",
+    "match": {
+      "host": "api.openai.com"
+    },
+    "action": {
+      "actionType": "Deny"
+    }
+  },
+  {
+    "name": "deny-paste-sites",
+    "ruleType": "Fqdn",
+    "match": {
+      "host": "*.pastebin.com"
+    },
+    "action": {
+      "actionType": "Deny"
+    }
+  }
+]
