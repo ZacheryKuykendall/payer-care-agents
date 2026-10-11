@@ -46,13 +46,15 @@ def build_fhir_registry(client: FhirClient) -> ToolRegistry:
 
     def list_member_conditions(member_id: str) -> dict[str, Any]:
         conditions = client.conditions(member_id)
-        return {"member_id": member_id.upper(), "count": len(conditions),
-                "conditions": conditions}
+        return {"member_id": member_id.upper(), "count": len(conditions), "conditions": conditions}
 
     def list_member_medications(member_id: str) -> dict[str, Any]:
         medications = client.medications(member_id)
-        return {"member_id": member_id.upper(), "count": len(medications),
-                "medications": medications}
+        return {
+            "member_id": member_id.upper(),
+            "count": len(medications),
+            "medications": medications,
+        }
 
     def submit_prior_authorization(
         member_id: str, service_code: str, clinical_summary: str
@@ -60,9 +62,7 @@ def build_fhir_registry(client: FhirClient) -> ToolRegistry:
         # Reached only if a caller is authorised for it, which the member-facing
         # assistant is not. Kept as a stub because this reference architecture does
         # not simulate an intake pipeline.
-        raise PermissionError(
-            "submit_prior_authorization is not available to this agent identity"
-        )
+        raise PermissionError("submit_prior_authorization is not available to this agent identity")
 
     return ToolRegistry(
         [

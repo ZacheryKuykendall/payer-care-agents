@@ -112,9 +112,7 @@ class InMemoryHybridIndex(SearchIndex):
         query_terms = Counter(tokenize(query))
         lexical = self._bm25(query_terms, candidates)
         vector = {
-            cid: score
-            for cid, score in self._vector_scores(query, candidates).items()
-            if score > 0
+            cid: score for cid, score in self._vector_scores(query, candidates).items() if score > 0
         }
 
         lexical_ranks = self._ranks(lexical)

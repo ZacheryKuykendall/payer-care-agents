@@ -50,9 +50,7 @@ PATTERNS: list[tuple[PhiCategory, re.Pattern[str]]] = [
     ),
     (
         PhiCategory.DATE_OF_BIRTH,
-        re.compile(
-            r"\b(?:0?[1-9]|1[0-2])[/-](?:0?[1-9]|[12]\d|3[01])[/-](?:19|20)\d{2}\b"
-        ),
+        re.compile(r"\b(?:0?[1-9]|1[0-2])[/-](?:0?[1-9]|[12]\d|3[01])[/-](?:19|20)\d{2}\b"),
     ),
     (PhiCategory.POSTAL_CODE, re.compile(r"\b\d{5}-\d{4}\b")),
 ]
@@ -152,9 +150,7 @@ class Redactor:
             cursor = end
         pieces.append(text[cursor:])
 
-        return RedactionResult(
-            text="".join(pieces), original_length=len(text), spans=spans
-        )
+        return RedactionResult(text="".join(pieces), original_length=len(text), spans=spans)
 
     def rehydrate(self, text: str) -> str:
         """Put the original values back. Used when calling a tool inside the boundary."""

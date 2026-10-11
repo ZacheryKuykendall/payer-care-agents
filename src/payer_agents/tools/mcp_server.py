@@ -55,8 +55,10 @@ def context_from_headers(headers: Any, default_agent: str = "mcp-http-client") -
 
 
 def handle_rpc(
-    message: dict[str, Any], registry: ToolRegistry, gateway: ApiManagementSimulator,
-    context: CallContext
+    message: dict[str, Any],
+    registry: ToolRegistry,
+    gateway: ApiManagementSimulator,
+    context: CallContext,
 ) -> dict[str, Any] | None:
     """Dispatch one JSON-RPC message. ``None`` means "notification, no response"."""
     if message.get("jsonrpc") != "2.0":
@@ -88,19 +90,16 @@ def handle_rpc(
         return _result(request_id, {})
 
     if method == "tools/list":
-        tools = [
-            tool.to_mcp()
-            for tool in registry.list()
-            if gateway.policy.permits(tool.name)
-        ]
+        tools = [tool.to_mcp() for tool in registry.list() if gateway.policy.permits(tool.name)]
         return _result(request_id, {"tools": tools})
 
     if method == "tools/call":
         name = params.get("name")
         arguments = params.get("arguments") or {}
         if not isinstance(name, str) or not isinstance(arguments, dict):
-            return _error(request_id, INVALID_PARAMS, "name must be a string and "
-                                                      "arguments an object")
+            return _error(
+                request_id, INVALID_PARAMS, "name must be a string and arguments an object"
+            )
 
         decision = gateway.authorize(name, context)
         if not decision.allowed:
@@ -140,7 +139,7 @@ def build_router(registry: ToolRegistry, gateway: ApiManagementSimulator) -> API
     async def rpc_endpoint(request: Request) -> JSONResponse:
         try:
             payload = await request.json()
-        except Exception:  # noqa: BLE001 - malformed body is a protocol-level error
+        except Exception:
             return JSONResponse(_error(None, PARSE_ERROR, "invalid JSON"), status_code=400)
 
         context = context_from_headers(request.headers)

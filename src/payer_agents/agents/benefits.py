@@ -31,9 +31,7 @@ class BenefitsAgent(SpecialistAgent, RetrievalMixin):
         notes: list[str] = []
 
         if context.member_id and context.mcp is not None:
-            call = context.mcp.call_tool(
-                "find_member_coverage", {"member_id": context.member_id}
-            )
+            call = context.mcp.call_tool("find_member_coverage", {"member_id": context.member_id})
             tool_calls.append(call)
             if call.ok:
                 coverage = call.payload if isinstance(call.payload, dict) else {}
@@ -57,10 +55,7 @@ class BenefitsAgent(SpecialistAgent, RetrievalMixin):
             )
 
         if plan_name:
-            lead_in = (
-                f"Here is what your plan documents say for {plan_name} "
-                f"({plan_id}):"
-            )
+            lead_in = f"Here is what your plan documents say for {plan_name} ({plan_id}):"
         else:
             lead_in = (
                 "I do not have your plan on file for this conversation, so this is "

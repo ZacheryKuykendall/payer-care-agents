@@ -64,8 +64,8 @@ class AuditSink(ABC):
     @abstractmethod
     def write(self, event: AuditEvent) -> None: ...
 
-    def close(self) -> None:  # pragma: no cover - default no-op
-        """Flush and release resources."""
+    def close(self) -> None:  # noqa: B027 - optional hook, not a required override
+        """Flush and release resources. Sinks that hold a handle override this."""
 
 
 class MemoryAuditSink(AuditSink):
@@ -186,6 +186,5 @@ class AuditLog:
         for category, pattern in PATTERNS:
             if pattern.search(blob):
                 raise PhiLeakError(
-                    f"audit detail contains an unredacted {category.value}; "
-                    "redact before recording"
+                    f"audit detail contains an unredacted {category.value}; redact before recording"
                 )

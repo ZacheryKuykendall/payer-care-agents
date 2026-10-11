@@ -69,13 +69,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.check:
         if not RULES_FILE.exists():
-            print(f"missing {RULES_FILE.relative_to(REPO_ROOT)}; run this script", file=sys.stderr)
+            print(f"missing {_short(RULES_FILE)}; run this script", file=sys.stderr)
             return 1
-        current = RULES_FILE.read_text(encoding="utf-8")
-        if current != render("rules"):
+        if RULES_FILE.read_text(encoding="utf-8") != render("rules"):
             print(
-                f"{RULES_FILE.relative_to(REPO_ROOT)} is out of date with "
-                f"{SOURCE.relative_to(REPO_ROOT)}; run "
+                f"{_short(RULES_FILE)} is out of date with {_short(SOURCE)}; run "
                 "python scripts/export_egress_policy.py",
                 file=sys.stderr,
             )
@@ -83,11 +81,19 @@ def main(argv: list[str] | None = None) -> int:
         print("egress rules are in sync")
         return 0
 
-    GENERATED_DIR.mkdir(parents=True, exist_ok=True)
+    RULES_FILE.parent.mkdir(parents=True, exist_ok=True)
     RULES_FILE.write_text(render("rules"), encoding="utf-8")
     (GENERATED_DIR / "README.md").write_text(f"# Generated\n\n{BANNER}\n", encoding="utf-8")
-    print(f"wrote {RULES_FILE.relative_to(REPO_ROOT)} ({len(build_rules())} rules)")
+    print(f"wrote {_short(RULES_FILE)} ({len(build_rules())} rules)")
     return 0
+
+
+def _short(path: Path) -> str:
+    """Repo-relative when possible; tests point these paths at a temp directory."""
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
 
 
 if __name__ == "__main__":

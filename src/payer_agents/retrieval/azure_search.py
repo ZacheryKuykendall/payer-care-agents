@@ -67,9 +67,7 @@ class AzureAISearchIndex(SearchIndex):
     def add(self, chunks: list[Chunk]) -> None:
         if not chunks:
             return
-        vectors = self.embedder.embed_batch(
-            [f"{c.title}\n{c.section}\n{c.text}" for c in chunks]
-        )
+        vectors = self.embedder.embed_batch([f"{c.title}\n{c.section}\n{c.text}" for c in chunks])
         documents = [
             {
                 "chunk_id": chunk.chunk_id,
@@ -82,7 +80,7 @@ class AzureAISearchIndex(SearchIndex):
                 "url": chunk.url,
                 VECTOR_FIELD: vector,
             }
-            for chunk, vector in zip(chunks, vectors)
+            for chunk, vector in zip(chunks, vectors, strict=False)
         ]
         self._client.merge_or_upload_documents(documents=documents)
 
@@ -102,9 +100,7 @@ class AzureAISearchIndex(SearchIndex):
             if value is None:
                 continue
             if key == "plan_id":
-                clauses.append(
-                    f"(plan_ids/any(p: p eq '{_escape(value)}') or not plan_ids/any())"
-                )
+                clauses.append(f"(plan_ids/any(p: p eq '{_escape(value)}') or not plan_ids/any())")
             elif isinstance(value, (list, tuple, set)):
                 joined = " or ".join(f"{key} eq '{_escape(v)}'" for v in value)
                 clauses.append(f"({joined})")

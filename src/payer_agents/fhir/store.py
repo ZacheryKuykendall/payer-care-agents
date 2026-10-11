@@ -163,7 +163,9 @@ class FhirStore:
     def service_requests_for(self, patient_id: str) -> list[dict[str, Any]]:
         return self._for_subject("ServiceRequest", patient_id, "subject")
 
-    def claims_for(self, patient_id: str, use: str | None = "preauthorization") -> list[dict[str, Any]]:
+    def claims_for(
+        self, patient_id: str, use: str | None = "preauthorization"
+    ) -> list[dict[str, Any]]:
         claims = self._for_subject("Claim", patient_id, "patient")
         if use is None:
             return claims
@@ -197,7 +199,8 @@ class FhirStore:
             results.append(
                 PriorAuthorization(
                     reference_number=reference,
-                    service=coding.get("display") or item.get("productOrService", {}).get("text", "requested service"),
+                    service=coding.get("display")
+                    or item.get("productOrService", {}).get("text", "requested service"),
                     service_code=coding.get("code"),
                     requested_on=claim.get("created"),
                     decided_on=(response or {}).get("created"),
@@ -214,8 +217,7 @@ class FhirStore:
                     requesting_provider=(claim.get("provider") or {}).get("display"),
                 )
             )
-        results.sort(key=lambda pa: (pa.requested_on or "", pa.reference_number), reverse=True)
-        return results
+        return sort_newest_first(results)
 
     def plan_id_for(self, patient_id: str) -> str | None:
         """Plan identifier used to filter benefits retrieval to the member's plan."""
@@ -224,6 +226,20 @@ class FhirStore:
                 if (klass.get("type") or {}).get("text") == "plan":
                     return klass.get("value")
         return None
+
+
+def sort_newest_first(authorizations: list[PriorAuthorization]) -> list[PriorAuthorization]:
+    """Newest request first.
+
+    Shared by both FHIR clients. The tool description promises this ordering, and a
+    member asking "what's the status of my request" almost always means the most
+    recent one -- so the ordering is part of the contract, not a presentation detail.
+    """
+    return sorted(
+        authorizations,
+        key=lambda pa: (pa.requested_on or "", pa.reference_number),
+        reverse=True,
+    )
 
 
 def _first_identifier(resource: dict[str, Any]) -> str | None:

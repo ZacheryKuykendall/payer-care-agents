@@ -164,8 +164,9 @@ class ExtractiveComposer(Composer):
         for position, _ in chosen:
             if position not in order:
                 order[position] = len(order) + 1
-        citations = [candidates[position].to_citation() for position in sorted(order,
-                                                                               key=order.get)]  # type: ignore[arg-type]
+        citations = [
+            candidates[position].to_citation() for position in sorted(order, key=order.get)
+        ]  # type: ignore[arg-type]
         evidence = [f"{line} [{order[position]}]" for position, line in chosen]
 
         parts: list[str] = [lead_in.strip()]
@@ -193,9 +194,7 @@ class ExtractiveComposer(Composer):
             parts.append("")
             parts.append(closing.strip())
 
-        return ComposedAnswer(
-            text="\n".join(parts).strip(), citations=citations, evidence=evidence
-        )
+        return ComposedAnswer(text="\n".join(parts).strip(), citations=citations, evidence=evidence)
 
 
 class FoundryChatComposer(Composer):

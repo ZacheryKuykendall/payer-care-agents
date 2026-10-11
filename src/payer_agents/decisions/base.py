@@ -26,7 +26,7 @@ from __future__ import annotations
 import math
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Literal, Union
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -97,7 +97,7 @@ class ScoreQuestion(BaseModel):
         return list(self.criteria)
 
 
-Question = Union[NoulQuestion, ChoiceQuestion, ScoreQuestion]
+Question = NoulQuestion | ChoiceQuestion | ScoreQuestion
 
 
 class DecisionRequest(BaseModel):
@@ -154,7 +154,7 @@ class ScoreAnswer(BaseModel):
         return self.levels[index]
 
 
-Answer = Union[NoulAnswer, ChoiceAnswer, ScoreAnswer]
+Answer = NoulAnswer | ChoiceAnswer | ScoreAnswer
 
 
 class DecisionResponse(BaseModel):
@@ -194,8 +194,8 @@ class DecisionClient(ABC):
     def decide(self, request: DecisionRequest) -> DecisionResponse:
         """Score every question against the state."""
 
-    def close(self) -> None:  # pragma: no cover - default no-op
-        """Release transport resources. Overridden by networked clients."""
+    def close(self) -> None:  # noqa: B027 - optional hook, not a required override
+        """Release transport resources. Networked clients override this."""
 
 
 _PROBABILITY_KEYS = ("probabilities", "probability", "option_probabilities", "scores")

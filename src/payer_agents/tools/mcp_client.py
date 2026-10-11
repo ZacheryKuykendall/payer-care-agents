@@ -61,9 +61,7 @@ class InProcessMcpClient(McpClient):
 
     def list_tools(self) -> list[dict[str, Any]]:
         return [
-            tool.to_mcp()
-            for tool in self.registry.list()
-            if self.gateway.policy.permits(tool.name)
+            tool.to_mcp() for tool in self.registry.list() if self.gateway.policy.permits(tool.name)
         ]
 
     def call_tool(
@@ -77,7 +75,11 @@ class InProcessMcpClient(McpClient):
         decision = self.gateway.authorize(name, context)
         if not decision.allowed:
             self.gateway.log(
-                name, context, decision, outcome="rejected", request_id=request_id,
+                name,
+                context,
+                decision,
+                outcome="rejected",
+                request_id=request_id,
                 argument_keys=sorted(arguments),
             )
             return ToolCall(
@@ -151,8 +153,9 @@ class HttpMcpClient(McpClient):
     clinical-system credential.
     """
 
-    def __init__(self, endpoint: str, headers: dict[str, str] | None = None,
-                 client: Any | None = None) -> None:
+    def __init__(
+        self, endpoint: str, headers: dict[str, str] | None = None, client: Any | None = None
+    ) -> None:
         self.endpoint = endpoint
         self.headers = {"Content-Type": "application/json", **(headers or {})}
         if client is None:
@@ -189,9 +192,7 @@ class HttpMcpClient(McpClient):
     def call_tool(self, name: str, arguments: dict[str, Any] | None = None) -> ToolCall:
         correlation_id = uuid.uuid4().hex
         try:
-            result = self._rpc(
-                "tools/call", {"name": name, "arguments": dict(arguments or {})}
-            )
+            result = self._rpc("tools/call", {"name": name, "arguments": dict(arguments or {})})
         except McpToolError as exc:
             return ToolCall(
                 tool=name,
@@ -203,7 +204,8 @@ class HttpMcpClient(McpClient):
             )
         is_error = bool(result.get("isError"))
         text = "".join(
-            block.get("text", "") for block in result.get("content", [])
+            block.get("text", "")
+            for block in result.get("content", [])
             if block.get("type") == "text"
         )
         payload: Any = None
@@ -235,7 +237,18 @@ def _safe_arguments(arguments: dict[str, Any]) -> dict[str, Any]:
 
 
 def _summarise(result: ToolResult) -> str:
+    """Shape of the result, not the result.
+
+    ``ToolCall`` is serialised into API responses and rendered in the demo console,
+    so dumping the payload here would widen the PHI surface to every consumer of a
+    turn. Agents read :attr:`ToolCall.payload`, which is excluded from serialisation;
+    everyone else gets enough to see that a call happened and what came back.
+    """
     if not result.ok:
         return result.error or "failed"
-    text = json.dumps(result.content, default=str)
-    return text if len(text) <= 600 else text[:597] + "..."
+    content = result.content
+    if isinstance(content, dict):
+        return f"object with fields: {', '.join(sorted(content))}"
+    if isinstance(content, (list, tuple)):
+        return f"{len(content)} record(s)"
+    return f"{type(content).__name__} result"

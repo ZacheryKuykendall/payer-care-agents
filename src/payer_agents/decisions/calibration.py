@@ -75,9 +75,7 @@ def reliability_bins(
         upper = (index + 1) / bin_count
         if not bucket:
             bins.append(
-                ReliabilityBin(
-                    lower=lower, upper=upper, count=0, mean_confidence=0.0, accuracy=0.0
-                )
+                ReliabilityBin(lower=lower, upper=upper, count=0, mean_confidence=0.0, accuracy=0.0)
             )
             continue
         bins.append(

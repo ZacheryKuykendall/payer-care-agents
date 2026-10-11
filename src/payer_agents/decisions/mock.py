@@ -42,8 +42,11 @@ _WORD = re.compile(r"[a-z0-9][a-z0-9\-']*")
 #: word "not" was enough to make a correctly cited policy answer look like it was
 #: issuing a coverage determination. Domain words that happen to be common -- plan,
 #: member, covered, request -- are deliberately left in.
+# A whitespace-delimited block stays readable and diffable; a list literal of 90
+# quoted strings does not.
 _STOPWORDS = frozenset(
-    """a an and are as at be but by for from has have how i if in is it its my of on or
+    """
+    a an and are as at be but by for from has have how i if in is it its my of on or
     that the their there they this to was what when where which who will with you your
     about do does did can could should would me we us our
     not no nor than then such also only very into each both all some most any
@@ -51,7 +54,8 @@ _STOPWORDS = frozenset(
     shall per via upon within without during while because however whether
     use used using get got make made take taken give given new one two
     will would like well much many more less first last next
-    am are isnt dont cant""".split()
+    am isnt dont cant
+    """.split()
 )
 
 #: Evidence is capped before it becomes a logit. Without a cap, a message that happens
@@ -87,11 +91,7 @@ def stem(word: str) -> str:
 
 def tokenize(text: str) -> set[str]:
     """Content words, lowercased, stopwords dropped, crudely stemmed."""
-    return {
-        stem(w)
-        for w in _WORD.findall(text.lower())
-        if w not in _STOPWORDS and len(w) > 2
-    }
+    return {stem(w) for w in _WORD.findall(text.lower()) if w not in _STOPWORDS and len(w) > 2}
 
 
 def _flatten_state(state: object) -> str:
@@ -158,8 +158,9 @@ class MockDecisionClient(DecisionClient):
             return self.priors[key]
         return self.priors.get(option, 0.0)
 
-    def _evidence(self, question_name: str, option: str, criteria: str, lowered: str,
-                  tokens: set[str]) -> float:
+    def _evidence(
+        self, question_name: str, option: str, criteria: str, lowered: str, tokens: set[str]
+    ) -> float:
         key = f"{question_name}.{option}"
         cue = self._cue_score(key, lowered) or self._cue_score(option, lowered)
         # Count matched criteria words rather than taking a ratio. Both ratios are
@@ -170,9 +171,7 @@ class MockDecisionClient(DecisionClient):
         overlap = min(1.0, matched / OVERLAP_SATURATION)
         return min(MAX_EVIDENCE, cue + CRITERIA_WEIGHT * overlap)
 
-    def _answer(
-        self, name: str, question: Question, lowered: str, tokens: set[str]
-    ) -> Answer:
+    def _answer(self, name: str, question: Question, lowered: str, tokens: set[str]) -> Answer:
         if isinstance(question, ChoiceQuestion):
             logits = {
                 option: self._prior(f"{name}.{option}", option)
@@ -188,8 +187,9 @@ class MockDecisionClient(DecisionClient):
             true_evidence = self._evidence(
                 name, "true", criteria.get("true", question.instructions), lowered, tokens
             )
-            false_evidence = self._evidence(name, "false", criteria.get("false", ""), lowered,
-                                            tokens)
+            false_evidence = self._evidence(
+                name, "false", criteria.get("false", ""), lowered, tokens
+            )
             logit = NOUL_GAIN * (true_evidence - false_evidence) + NOUL_BIAS
             return NoulAnswer(probability=1.0 / (1.0 + math.exp(-logit)))
 
@@ -214,7 +214,9 @@ class MockDecisionClient(DecisionClient):
         peak = max(probabilities.values())
         if peak <= ceiling or peak <= uniform:
             return probabilities
-        blend = (ceiling - uniform) / (peak - uniform)
+        # A ceiling below uniform is unreachable -- with n options something must hold
+        # at least 1/n. Collapse to uniform rather than emitting negative mass.
+        blend = min(1.0, max(0.0, (ceiling - uniform) / (peak - uniform)))
         return normalise({k: blend * v + (1 - blend) * uniform for k, v in probabilities.items()})
 
 

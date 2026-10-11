@@ -198,8 +198,12 @@ class Orchestrator:
                 else HandoffReason.UNGROUNDED_ANSWER
             )
             return self._handoff(
-                context, reason, "agent returned no grounded answer", started, first_event,
-                partial=answer
+                context,
+                reason,
+                "agent returned no grounded answer",
+                started,
+                first_event,
+                partial=answer,
             )
 
         grade = self.judge.grade(answer.text, answer.citations, answer.facts)

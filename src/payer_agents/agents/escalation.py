@@ -96,8 +96,10 @@ class EscalationAgent(SpecialistAgent):
             reason is HandoffReason.URGENT_CLINICAL
             and routing.urgency >= context.settings.safety.urgency_escalation_level
         )
-        summary = EMERGENCY_TEXT if is_emergency else MEMBER_TEXT.get(
-            reason, MEMBER_TEXT[HandoffReason.LOW_CONFIDENCE]
+        summary = (
+            EMERGENCY_TEXT
+            if is_emergency
+            else MEMBER_TEXT.get(reason, MEMBER_TEXT[HandoffReason.LOW_CONFIDENCE])
         )
 
         packet = {
@@ -113,9 +115,7 @@ class EscalationAgent(SpecialistAgent):
                 "probabilities": {k: round(v, 4) for k, v in routing.probabilities.items()},
                 "urgency": round(routing.urgency, 3),
                 "urgency_label": routing.urgency_label,
-                "clinician_required_probability": round(
-                    routing.clinician_required_probability, 4
-                ),
+                "clinician_required_probability": round(routing.clinician_required_probability, 4),
                 "injection_probability": round(routing.injection_probability, 4),
                 "model": routing.model,
                 "provider": routing.provider,

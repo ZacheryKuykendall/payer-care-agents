@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import fnmatch
 import json
+import re
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -30,8 +31,17 @@ from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, field_validator
 
+from payer_agents.config import DATA_ROOT
+
 #: Azure caps an egress policy at 480 rules across all actions.
 MAX_RULES = 480
+
+DEFAULT_POLICY_PATH = DATA_ROOT / "policy" / "egress-policy.json"
+
+#: A destination must look like a hostname before it can match a rule. urlparse is
+#: permissive enough to hand back "not a url at all" as a hostname, and a policy that
+#: silently evaluates garbage is a policy that silently lets garbage through.
+HOSTNAME = re.compile(r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]*[a-z0-9])?)*$")
 
 
 class EgressMode(str, Enum):
@@ -90,8 +100,7 @@ class EgressBlocked(RuntimeError):
 
     def __init__(self, decision: EgressDecision) -> None:
         super().__init__(
-            f"egress denied for {decision.host} by rule {decision.rule_name!r} "
-            f"({decision.reason})"
+            f"egress denied for {decision.host} by rule {decision.rule_name!r} ({decision.reason})"
         )
         self.decision = decision
 
@@ -176,12 +185,13 @@ class EgressPolicy(BaseModel):
 
 
 def load_egress_policy(path: Path | None = None) -> EgressPolicy:
-    """Load the policy, falling back to a deny-all policy if the file is missing.
+    """Load the shipped policy, or a deny-all policy if the file is missing.
 
     Failing closed on a missing policy file is the only safe default: a deployment
     that forgot to ship the policy should lose outbound access, not gain it.
     """
-    if path is None or not Path(path).exists():
+    path = DEFAULT_POLICY_PATH if path is None else Path(path)
+    if not path.exists():
         return EgressPolicy(
             name="fallback-deny-all",
             mode=EgressMode.ENFORCED,
@@ -189,7 +199,7 @@ def load_egress_policy(path: Path | None = None) -> EgressPolicy:
             rules=[],
             notes=["policy file not found; failing closed with a deny-all policy"],
         )
-    return EgressPolicy.from_file(Path(path))
+    return EgressPolicy.from_file(path)
 
 
 class GuardedTransport:
@@ -244,5 +254,10 @@ class GuardedTransport:
 
 
 def _host_of(url: str) -> str:
-    parsed = urlparse(url if "//" in url else f"//{url}")
-    return (parsed.hostname or "").lower()
+    """Extract a destination host, or an empty string if it is not one."""
+    try:
+        parsed = urlparse(url if "//" in url else f"//{url}")
+        host = (parsed.hostname or "").lower()
+    except ValueError:
+        return ""
+    return host if HOSTNAME.match(host) else ""

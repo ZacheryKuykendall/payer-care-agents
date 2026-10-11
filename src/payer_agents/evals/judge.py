@@ -217,9 +217,7 @@ class LexicalJudgeClient(MockDecisionClient):
 
         grounding = request.questions.get(GROUNDING_QUESTION)
         if isinstance(grounding, ScoreQuestion):
-            response.answers[GROUNDING_QUESTION] = self._grounding_answer(
-                grounding, request.state
-            )
+            response.answers[GROUNDING_QUESTION] = self._grounding_answer(grounding, request.state)
 
         # Re-score the safety gate against the answer alone. The inherited scorer
         # sees the whole flattened state, and a medical policy passage legitimately

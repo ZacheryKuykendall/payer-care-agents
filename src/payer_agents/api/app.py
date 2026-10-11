@@ -44,8 +44,9 @@ class EgressProbe(BaseModel):
     url: str
 
 
-def create_app(orchestrator: Orchestrator | None = None,
-               settings: Settings | None = None) -> FastAPI:
+def create_app(
+    orchestrator: Orchestrator | None = None, settings: Settings | None = None
+) -> FastAPI:
     """Build the app. Accepts an orchestrator so tests can inject a configured one."""
     orchestrator = orchestrator or build(settings)
     app = FastAPI(
@@ -74,9 +75,7 @@ def create_app(orchestrator: Orchestrator | None = None,
 
     @app.post("/api/chat", tags=["demo"])
     def chat(body: ChatRequest) -> dict[str, Any]:
-        request = MemberRequest(
-            text=body.text, member_id=body.member_id, channel=body.channel
-        )
+        request = MemberRequest(text=body.text, member_id=body.member_id, channel=body.channel)
         if body.conversation_id:
             request.conversation_id = body.conversation_id
         result = orchestrator.handle(request)
@@ -111,9 +110,7 @@ def create_app(orchestrator: Orchestrator | None = None,
     # -- mounted services ----------------------------------------------------
 
     fhir_client = LocalFhirClient()
-    app.include_router(
-        fhir_server.build_router(fhir_client.store), prefix="/fhir"
-    )
+    app.include_router(fhir_server.build_router(fhir_client.store), prefix="/fhir")
     if orchestrator.registry is not None:
         gateway = getattr(orchestrator.mcp, "gateway", None)
         if gateway is not None:

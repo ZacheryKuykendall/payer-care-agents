@@ -74,8 +74,7 @@ class ToolResult(BaseModel):
         """MCP ``tools/call`` result. Errors are in-band via ``isError``."""
         import json
 
-        text = json.dumps(self.content if self.ok else {"error": self.error}, indent=2,
-                          default=str)
+        text = json.dumps(self.content if self.ok else {"error": self.error}, indent=2, default=str)
         return {"content": [{"type": "text", "text": text}], "isError": not self.ok}
 
 
@@ -154,7 +153,7 @@ class ToolRegistry:
 
         try:
             content = tool.handler(**arguments)
-        except Exception as exc:  # noqa: BLE001 - tool failures are data, not crashes
+        except Exception as exc:
             return ToolResult(
                 tool=name,
                 ok=False,

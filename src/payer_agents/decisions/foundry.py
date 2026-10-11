@@ -114,8 +114,7 @@ class FoundryDecisionClient(DecisionClient):
                         latency_ms=latency_ms,
                     )
                 last_error = DecisionError(
-                    f"decision API returned HTTP {response.status_code}: "
-                    f"{response.text[:280]}"
+                    f"decision API returned HTTP {response.status_code}: {response.text[:280]}"
                 )
                 if response.status_code not in RETRYABLE_STATUS:
                     break

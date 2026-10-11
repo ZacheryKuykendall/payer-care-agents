@@ -142,8 +142,7 @@ class ApiManagementSimulator:
                 allowed=False,
                 status_code=403,
                 policy="tool-allow-list",
-                reason=f"agent {context.agent_id!r} is not authorised for tool "
-                f"{tool_name!r}",
+                reason=f"agent {context.agent_id!r} is not authorised for tool {tool_name!r}",
             )
 
         allowed, remaining = self.limiter.check(context.agent_id)
@@ -158,8 +157,7 @@ class ApiManagementSimulator:
             )
 
         return GatewayDecision(
-            allowed=True, policy="allow", reason="policy chain passed",
-            remaining_calls=remaining
+            allowed=True, policy="allow", reason="policy chain passed", remaining_calls=remaining
         )
 
     def log(

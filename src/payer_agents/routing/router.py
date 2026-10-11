@@ -135,7 +135,10 @@ class Router:
                 f"required for {decision.intent.value}",
             )
 
-        return GateOutcome(True, explanation=f"confidence {decision.confidence:.2f} >= {threshold:.2f}")
+        return GateOutcome(
+            True,
+            explanation=f"confidence {decision.confidence:.2f} >= {threshold:.2f}",
+        )
 
     def _unknown(self, reason: str) -> RoutingDecision:
         options = [intent.value for intent in Intent]

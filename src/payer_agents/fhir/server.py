@@ -71,9 +71,7 @@ def build_router(store: FhirStore) -> APIRouter:
             "fhirVersion": "4.0.1",
             "format": ["application/fhir+json"],
             "software": {"name": "payer-agents synthetic FHIR stub"},
-            "implementation": {
-                "description": "Synthetic data only. Not a conformant FHIR server."
-            },
+            "implementation": {"description": "Synthetic data only. Not a conformant FHIR server."},
             "rest": [
                 {
                     "mode": "server",
@@ -81,9 +79,7 @@ def build_router(store: FhirStore) -> APIRouter:
                         {
                             "type": resource_type,
                             "interaction": [{"code": "search-type"}, {"code": "read"}],
-                            "searchParam": [
-                                {"name": name, "type": "string"} for name in params
-                            ],
+                            "searchParam": [{"name": name, "type": "string"} for name in params],
                         }
                         for resource_type, params in SEARCH_PARAMS.items()
                     ],

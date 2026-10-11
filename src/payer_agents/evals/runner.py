@@ -139,8 +139,7 @@ def run_suite(orchestrator: Any, cases: list[EvalCase] | None = None) -> EvalRep
     return EvalReport(
         sample_size=len(outcomes),
         routing_accuracy=sum(1 for o in outcomes if o.correct) / total,
-        abstention_rate=sum(1 for o in outcomes if o.predicted == Intent.CANNOT_TELL.value)
-        / total,
+        abstention_rate=sum(1 for o in outcomes if o.predicted == Intent.CANNOT_TELL.value) / total,
         automation_rate=sum(1 for o in outcomes if o.automated) / total,
         human_routing_accuracy=sum(1 for o in outcomes if o.human_decision_correct) / total,
         mean_grounding_score=(

@@ -110,9 +110,7 @@ def build_routing_request(request: MemberRequest) -> DecisionRequest:
                 criteria=list(URGENCY_LEVELS),
             ),
             CLINICIAN_QUESTION: NoulQuestion(
-                instructions=(
-                    "Does answering this message safely require a licensed clinician?"
-                ),
+                instructions=("Does answering this message safely require a licensed clinician?"),
                 criteria={
                     "true": (
                         "Asks for diagnosis, treatment selection, medication dosing, "

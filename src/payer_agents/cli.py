@@ -41,9 +41,7 @@ def _banner(console: Console, orchestrator: Orchestrator) -> None:
     table.add_row("grounding judge", info["judge"])
     table.add_row("answer composer", info["composer"])
     table.add_row("taxonomy", info["taxonomy_version"])
-    table.add_row(
-        "indexes", ", ".join(f"{k}={v} chunks" for k, v in info["indexes"].items())
-    )
+    table.add_row("indexes", ", ".join(f"{k}={v} chunks" for k, v in info["indexes"].items()))
     table.add_row("mcp tools", str(len(info["tools"])))
     egress = info["egress_policy"]
     if egress:
@@ -62,7 +60,7 @@ def _banner(console: Console, orchestrator: Orchestrator) -> None:
 
 
 def _bar(value: float, width: int = BAR_WIDTH) -> str:
-    filled = int(round(min(1.0, max(0.0, value)) * width))
+    filled = round(min(1.0, max(0.0, value)) * width)
     return "#" * filled + "." * (width - filled)
 
 
@@ -72,12 +70,12 @@ def _routing_table(result: TurnResult, threshold: float) -> Table:
     table.add_column("option", width=20)
     table.add_column("p", justify="right", width=6)
     table.add_column("", width=BAR_WIDTH)
-    for option, probability in sorted(
-        routing.probabilities.items(), key=lambda kv: -kv[1]
-    ):
+    for option, probability in sorted(routing.probabilities.items(), key=lambda kv: -kv[1]):
         selected = option == routing.intent.value
-        style = "bold green" if selected and probability >= threshold else (
-            "bold yellow" if selected else "dim"
+        style = (
+            "bold green"
+            if selected and probability >= threshold
+            else ("bold yellow" if selected else "dim")
         )
         table.add_row(
             Text(option, style=style),
@@ -87,8 +85,9 @@ def _routing_table(result: TurnResult, threshold: float) -> Table:
     return table
 
 
-def _print_turn(console: Console, orchestrator: Orchestrator, title: str,
-                text: str, result: TurnResult) -> None:
+def _print_turn(
+    console: Console, orchestrator: Orchestrator, title: str, text: str, result: TurnResult
+) -> None:
     routing = result.routing
     threshold = orchestrator.settings.threshold_for(routing.intent.value)
 
@@ -104,27 +103,21 @@ def _print_turn(console: Console, orchestrator: Orchestrator, title: str,
         f"margin [bold]{routing.top_margin:.3f}[/]"
     )
 
-    gate = next(
-        (e for e in result.audit_events if e["category"] == "gate"), {"detail": {}}
-    )
-    grounding = next(
-        (e for e in result.audit_events if e["category"] == "grounding"), None
-    )
+    gate = next((e for e in result.audit_events if e["category"] == "gate"), {"detail": {}})
+    grounding = next((e for e in result.audit_events if e["category"] == "grounding"), None)
 
     if result.automated:
         verdict = Text("  AUTOMATED", style="bold green")
         verdict.append(f"   gate: {gate['detail'].get('explanation', '')}", style="dim")
     else:
         verdict = Text(
-            f"  HUMAN IN THE LOOP -> {result.handoff.queue} "
-            f"({result.handoff.priority})",
+            f"  HUMAN IN THE LOOP -> {result.handoff.queue} ({result.handoff.priority})",
             style="bold yellow",
         )
-        verdict.append(
-            f"   reason: {result.handoff.reason.value} - "
-            f"{gate['detail'].get('explanation') or result.handoff.context.get('gate_explanation', '')}",
-            style="dim",
+        why = gate["detail"].get("explanation") or result.handoff.context.get(
+            "gate_explanation", ""
         )
+        verdict.append(f"   reason: {result.handoff.reason.value} - {why}", style="dim")
     console.print(verdict)
 
     if grounding:
@@ -173,9 +166,7 @@ def cmd_demo(args: argparse.Namespace) -> int:
 
     automated = 0
     for scenario in scenarios:
-        result = orchestrator.handle(
-            MemberRequest(text=scenario.text, channel=scenario.channel)
-        )
+        result = orchestrator.handle(MemberRequest(text=scenario.text, channel=scenario.channel))
         automated += int(result.automated)
         _print_turn(console, orchestrator, scenario.title, scenario.text, result)
         console.print(f"  [dim]why this is here:[/] {scenario.teaches}")
@@ -192,8 +183,7 @@ def cmd_demo(args: argparse.Namespace) -> int:
         f"({len(orchestrator.audit.events)} records)"
     )
     console.print(
-        "  every number above was produced locally by the offline model. "
-        "See docs/EVALUATION.md.",
+        "  every number above was produced locally by the offline model. See docs/EVALUATION.md.",
         style="dim",
     )
     return 0
@@ -203,9 +193,7 @@ def cmd_ask(args: argparse.Namespace) -> int:
     console = _console()
     orchestrator = build(_settings(args))
     result = orchestrator.handle(
-        MemberRequest(
-            text=args.text, member_id=args.member_id, channel=Channel(args.channel)
-        )
+        MemberRequest(text=args.text, member_id=args.member_id, channel=Channel(args.channel))
     )
     if args.json:
         print(json.dumps(result.model_dump(mode="json"), indent=2, default=str))
@@ -279,7 +267,7 @@ def cmd_tools(args: argparse.Namespace) -> int:
     console = _console()
     orchestrator = build(_settings(args))
     assert orchestrator.registry is not None
-    gateway_policy = getattr(orchestrator.mcp, "gateway").policy
+    gateway_policy = orchestrator.mcp.gateway.policy
 
     table = Table(title="MCP tools", header_style="dim")
     table.add_column("tool")
@@ -304,8 +292,7 @@ def cmd_egress(args: argparse.Namespace) -> int:
     policy = orchestrator.egress_policy
     assert policy is not None
 
-    table = Table(title=f"Egress policy: {policy.name} ({policy.mode.value})",
-                  header_style="dim")
+    table = Table(title=f"Egress policy: {policy.name} ({policy.mode.value})", header_style="dim")
     table.add_column("url")
     table.add_column("action")
     table.add_column("rule")
@@ -326,9 +313,7 @@ def cmd_audit(args: argparse.Namespace) -> int:
     console = _console()
     orchestrator = build(_settings(args))
     for scenario in SCENARIOS:
-        orchestrator.handle(
-            MemberRequest(text=scenario.text, channel=scenario.channel)
-        )
+        orchestrator.handle(MemberRequest(text=scenario.text, channel=scenario.channel))
     events = orchestrator.audit.as_dicts()
     if args.json:
         print(json.dumps(events, indent=2, default=str))
@@ -349,10 +334,7 @@ def cmd_audit(args: argparse.Namespace) -> int:
             event["hash"][:12],
         )
     console.print(table)
-    console.print(
-        f"  hash chain valid: "
-        f"[bold]{'yes' if orchestrator.audit.verify() else 'NO'}[/]"
-    )
+    console.print(f"  hash chain valid: [bold]{'yes' if orchestrator.audit.verify() else 'NO'}[/]")
     return 0
 
 
@@ -371,19 +353,20 @@ def _settings(args: argparse.Namespace) -> Settings:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="payer-agents",
-        description=(
-            "Governed multi-agent healthcare payer assistant. Synthetic data only."
-        ),
+        description=("Governed multi-agent healthcare payer assistant. Synthetic data only."),
     )
     parser.add_argument(
-        "--mode", choices=[m.value for m in RuntimeMode],
+        "--mode",
+        choices=[m.value for m in RuntimeMode],
         help="override PAYER_AGENTS_MODE",
     )
     sub = parser.add_subparsers(dest="command")
 
     demo = sub.add_parser("demo", help="run the scripted walkthrough (default)")
     demo.add_argument(
-        "--only", nargs="*", metavar="KEY",
+        "--only",
+        nargs="*",
+        metavar="KEY",
         help=f"scenario keys to run: {', '.join(SCENARIOS_BY_KEY)}",
     )
     demo.set_defaults(func=cmd_demo)
@@ -392,7 +375,8 @@ def build_parser() -> argparse.ArgumentParser:
     ask.add_argument("text")
     ask.add_argument("--member-id")
     ask.add_argument(
-        "--channel", default=Channel.MEMBER_PORTAL.value,
+        "--channel",
+        default=Channel.MEMBER_PORTAL.value,
         choices=[c.value for c in Channel],
     )
     ask.add_argument("--json", action="store_true")

@@ -22,6 +22,7 @@ from payer_agents.fhir.store import (
     PriorAuthorization,
     derive_status,
     patient_display_name,
+    sort_newest_first,
 )
 
 
@@ -72,9 +73,7 @@ class LocalFhirClient(FhirClient):
         if not coverages:
             return None
         coverage = coverages[0]
-        classes = {
-            (c.get("type") or {}).get("text", "other"): c for c in coverage.get("class", [])
-        }
+        classes = {(c.get("type") or {}).get("text", "other"): c for c in coverage.get("class", [])}
         plan = classes.get("plan", {})
         return {
             "member_id": member_id.upper(),
@@ -172,9 +171,7 @@ class HttpFhirClient(FhirClient):
         if not entries:
             return None
         coverage = entries[0]
-        classes = {
-            (c.get("type") or {}).get("text", "other"): c for c in coverage.get("class", [])
-        }
+        classes = {(c.get("type") or {}).get("text", "other"): c for c in coverage.get("class", [])}
         plan = classes.get("plan", {})
         return {
             "member_id": member_id.upper(),
@@ -227,11 +224,15 @@ class HttpFhirClient(FhirClient):
                     disposition=disposition,
                     valid_from=period.get("start"),
                     valid_through=period.get("end"),
-                    notes=[n.get("text", "") for n in response.get("processNote", []) if n.get("text")],
+                    notes=[
+                        note.get("text", "")
+                        for note in response.get("processNote", [])
+                        if note.get("text")
+                    ],
                     requesting_provider=(claim.get("provider") or {}).get("display"),
                 )
             )
-        return results
+        return sort_newest_first(results)
 
     def conditions(self, member_id: str) -> list[dict[str, Any]]:
         patient_id = self._patient_id(member_id)
@@ -241,7 +242,9 @@ class HttpFhirClient(FhirClient):
             {
                 "code": ((c.get("code") or {}).get("coding") or [{}])[0].get("code"),
                 "display": (c.get("code") or {}).get("text"),
-                "clinical_status": ((c.get("clinicalStatus") or {}).get("coding") or [{}])[0].get("code"),
+                "clinical_status": ((c.get("clinicalStatus") or {}).get("coding") or [{}])[0].get(
+                    "code"
+                ),
                 "onset": c.get("onsetDateTime"),
             }
             for c in self._entries(
