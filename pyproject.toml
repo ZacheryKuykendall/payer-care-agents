@@ -40,7 +40,7 @@ dev = [
 payer-agents = "payer_agents.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/zacherykuykendall/payer-agents"
+Homepage = "https://github.com/ZacheryKuykendall/payer-care-agents"
 
 [build-system]
 requires = ["hatchling"]
