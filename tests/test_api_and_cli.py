@@ -67,6 +67,14 @@ def test_chat_returns_a_handoff_for_an_escalation(client):
     assert body["result"]["answer"] is None
 
 
+def test_chat_response_serialises_the_computed_margin(client):
+    """Regression: top_margin was a plain property, so the console rendered NaN."""
+    body = client.post("/api/chat", json={"text": "What is my specialist copay?"}).json()
+    margin = body["result"]["routing"]["top_margin"]
+    assert isinstance(margin, float)
+    assert 0.0 <= margin <= 1.0
+
+
 def test_chat_response_never_carries_a_raw_tool_payload(client):
     body = client.post("/api/chat", json={"text": "What is my specialist copay? NW-100001"}).json()
     assert "payload" not in json.dumps(body["result"]["answer"]["tool_calls"])

@@ -53,6 +53,29 @@ async function boot() {
   renderScenarios();
   renderTools();
   renderEgressPolicy();
+  openDeepLink();
+}
+
+/* Deep links so a walkthrough can jump straight to a turn:
+   /?scenario=injection   /?ask=does%20my%20plan%20cover%20hearing%20aids   /?tab=evals */
+function openDeepLink() {
+  const params = new URLSearchParams(window.location.search);
+
+  const tab = params.get('tab');
+  if (tab) $$('.tab').find((t) => t.dataset.tab === tab)?.click();
+
+  const key = params.get('scenario');
+  if (key) {
+    const index = state.scenarios.findIndex((s) => s.key === key);
+    if (index >= 0) $$('#scenario-list button')[index].click();
+    return;
+  }
+
+  const ask = params.get('ask');
+  if (ask) {
+    $('#ask-text').value = ask;
+    send(ask, $('#ask-channel').value, null);
+  }
 }
 
 /* ------------------------------------------------------------ scenarios */

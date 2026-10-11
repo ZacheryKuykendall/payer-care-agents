@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 
 def utcnow() -> datetime:
@@ -78,12 +78,17 @@ class RoutingDecision(BaseModel):
     degraded: bool = False
     degraded_reason: str | None = None
 
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def top_margin(self) -> float:
         """Gap between the best and second-best option.
 
         A high top probability with a near-tie behind it is a different kind of
         uncertainty than a high top probability with nothing close.
+
+        Computed rather than stored, but serialised: the API and the console both
+        display it, and a plain property silently becomes ``undefined`` on the way
+        out.
         """
         ranked = sorted(self.probabilities.values(), reverse=True)
         if len(ranked) < 2:
